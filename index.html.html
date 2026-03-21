@@ -360,6 +360,25 @@
   </div>
 
 
+
+  <!-- MODAL ESCANER QR -->
+  <div id="qrModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;flex-direction:column;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;width:92%;max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:1rem;font-weight:600">📷 Escanear QR AFIP</div>
+        <button onclick="cerrarEscaner()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:1">
+        <video id="qrVideo" style="width:100%;height:100%;object-fit:cover" playsinline autoplay></video>
+        <canvas id="qrCanvas" style="display:none"></canvas>
+        <!-- Marco de escaneo -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+          <div style="width:65%;height:65%;border:3px solid #6c63ff;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.4)"></div>
+        </div>
+      </div>
+      <div id="qrStatus" style="text-align:center;margin-top:14px;font-size:0.85rem;color:var(--muted)">Apuntá la cámara al código QR de la factura</div>
+    </div>
+  </div>
   <!-- MODAL CONFIRMAR ELIMINACIÓN -->
   <div id="confirmModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;pointer-events:all;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px 24px;max-width:320px;width:90%;text-align:center;">
@@ -428,7 +447,12 @@
     </div>
 
     <div class="card">
-      <h2>➕ Nuevo gasto</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+        <h2 style="margin-bottom:0">➕ Nuevo gasto</h2>
+        <button onclick="abrirEscaner()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;border:none;border-radius:12px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;">
+          📷 Escanear QR
+        </button>
+      </div>
       <div class="form-grid">
         <div class="form-group">
           <label>Categoría</label>
@@ -910,6 +934,116 @@ function setTab(t) {
 }
 
 // ── AGREGAR GASTO ──
+// ══════════════════════════════════════════════
+//  ESCANER QR AFIP
+// ══════════════════════════════════════════════
+let _qrStream = null;
+let _qrInterval = null;
+
+async function abrirEscaner() {
+  document.getElementById('qrModal').style.display = 'flex';
+  document.getElementById('qrStatus').textContent = 'Iniciando cámara...';
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: {ideal:1280}, height: {ideal:720} }
+    });
+    const video = document.getElementById('qrVideo');
+    video.srcObject = _qrStream;
+    video.play();
+    document.getElementById('qrStatus').textContent = 'Apuntá la cámara al código QR de la factura';
+    _qrInterval = setInterval(escanearFrame, 400);
+  } catch(e) {
+    document.getElementById('qrStatus').textContent = '⚠️ No se pudo acceder a la cámara. Verificá los permisos.';
+  }
+}
+
+function cerrarEscaner() {
+  clearInterval(_qrInterval);
+  if (_qrStream) { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+  document.getElementById('qrModal').style.display = 'none';
+  document.getElementById('qrVideo').srcObject = null;
+}
+
+function escanearFrame() {
+  const video = document.getElementById('qrVideo');
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+  const canvas = document.getElementById('qrCanvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  try {
+    // Usar BarcodeDetector si está disponible (Chrome Android)
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      detector.detect(canvas).then(codes => {
+        if (codes.length > 0) procesarQRAfip(codes[0].rawValue);
+      }).catch(() => {});
+    }
+  } catch(e) {}
+}
+
+function procesarQRAfip(rawValue) {
+  clearInterval(_qrInterval);
+  document.getElementById('qrStatus').textContent = '✅ QR detectado! Procesando...';
+  
+  try {
+    // QR AFIP formato: https://www.afip.gob.ar/fe/qr/?p=BASE64
+    let datos = null;
+    
+    if (rawValue.includes('afip.gob.ar') || rawValue.includes('afip.gov.ar')) {
+      // Extraer el parámetro p= del URL
+      const url = new URL(rawValue);
+      const p = url.searchParams.get('p');
+      if (p) {
+        const decoded = atob(p);
+        datos = JSON.parse(decoded);
+      }
+    } else {
+      // Intentar parsear directo como JSON
+      datos = JSON.parse(rawValue);
+    }
+
+    if (datos) {
+      const monto = datos.importe || datos.imp_total || datos.importeTotal || 0;
+      const fecha = datos.fecha ? datos.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
+      const tipo  = datos.tipoCmp || datos.tipo_cmp || '';
+      const cuit  = datos.cuit || datos.emisor?.cuit || '';
+      
+      // Determinar descripción según tipo de comprobante
+      const tipoNombre = {1:'Factura A', 6:'Factura B', 11:'Factura C', 51:'Factura M', 81:'Tique'}[tipo] || 'Factura';
+      const desc = `${tipoNombre}${cuit ? ' CUIT:'+cuit : ''}`;
+      
+      // Pre-llenar y guardar
+      const fechaFmt = fecha.slice(0,10);
+      cerrarEscaner();
+      
+      // Guardar directo
+      const categoria = document.getElementById('categoria').value || 'Otros';
+      gastos.unshift({id: Date.now(), desc, monto: parseFloat(monto), categoria, fecha: fechaFmt});
+      guardar(); renderAll();
+      
+      // Mostrar feedback
+      mostrarToast(`✅ Gasto registrado: $ ${fmt0(monto)}`);
+    } else {
+      document.getElementById('qrStatus').textContent = '⚠️ QR no reconocido como factura AFIP. Intentá de nuevo.';
+      _qrInterval = setInterval(escanearFrame, 400);
+    }
+  } catch(e) {
+    document.getElementById('qrStatus').textContent = '⚠️ No se pudo leer el QR. Intentá de nuevo.';
+    _qrInterval = setInterval(escanearFrame, 400);
+  }
+}
+
+function mostrarToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#43e97b;color:#0f0f13;padding:12px 20px;border-radius:12px;font-weight:600;font-size:0.9rem;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.4s';
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; setTimeout(() => t.remove(), 400); }, 3000);
+}
+
 function agregarGasto() {
   const desc=document.getElementById('desc').value.trim();
   const monto=parseFloat(document.getElementById('monto').value);
