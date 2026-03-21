@@ -379,6 +379,21 @@
       <div id="qrStatus" style="text-align:center;margin-top:14px;font-size:0.85rem;color:var(--muted)">Apuntá la cámara al código QR de la factura</div>
     </div>
   </div>
+
+  <!-- MODAL DESTINO QR -->
+  <div id="qrDestinoModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:320px;width:90%;text-align:center;">
+      <div style="font-size:1.8rem;margin-bottom:8px">📋</div>
+      <div id="qrDestinoMonto" style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--accent);margin-bottom:4px"></div>
+      <div id="qrDestinoDesc" style="font-size:0.8rem;color:var(--muted);margin-bottom:20px"></div>
+      <div style="font-size:0.88rem;font-weight:600;margin-bottom:12px">¿Dónde registrás este gasto?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="registrarDesdeQR('gasto')" style="padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">📋 Gastos personales</button>
+        <button onclick="registrarDesdeQR('servicio')" style="padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🏠 Servicios del hogar</button>
+        <button onclick="document.getElementById('qrDestinoModal').style.display='none'" style="padding:10px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.85rem;cursor:pointer;">Cancelar</button>
+      </div>
+    </div>
+  </div>
   <!-- MODAL CONFIRMAR ELIMINACIÓN -->
   <div id="confirmModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;pointer-events:all;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px 24px;max-width:320px;width:90%;text-align:center;">
@@ -411,6 +426,9 @@
 
   <header>
     <h1>💸 Mis Gastos</h1>
+    <button onclick="abrirEscaner()" style="margin-top:12px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;border:none;border-radius:14px;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(108,99,255,0.4);">
+      📷 Escanear QR AFIP
+    </button>
   </header>
 
   <!-- SELECTOR DE MES GLOBAL -->
@@ -447,12 +465,7 @@
     </div>
 
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
-        <h2 style="margin-bottom:0">➕ Nuevo gasto</h2>
-        <button onclick="abrirEscaner()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;border:none;border-radius:12px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:600;cursor:pointer;">
-          📷 Escanear QR
-        </button>
-      </div>
+      <h2>➕ Nuevo gasto</h2>
       <div class="form-grid">
         <div class="form-group">
           <label>Categoría</label>
@@ -1006,7 +1019,22 @@ function procesarQRAfip(rawValue) {
     }
 
     if (datos) {
-      const monto = datos.importe || datos.imp_total || datos.importeTotal || 0;
+      // Normalizar monto — AFIP puede enviar "59000.00" o "59.000,00"
+      const rawMonto = String(datos.importe || datos.imp_total || datos.importeTotal || 0);
+      let monto = 0;
+      if (rawMonto.includes(',') && rawMonto.includes('.')) {
+        // Formato "59.000,00" — punto=miles, coma=decimal
+        monto = parseFloat(rawMonto.replace(/\./g,'').replace(',','.'));
+      } else if (rawMonto.includes(',')) {
+        // Formato "59000,00" — coma=decimal
+        monto = parseFloat(rawMonto.replace(',','.'));
+      } else {
+        // Formato "59000.00" — punto=decimal (estándar AFIP)
+        monto = parseFloat(rawMonto);
+      }
+      // AFIP a veces envía el monto en centavos — si es demasiado grande, dividir por 100
+      // Heurística: si tiene exactamente 2 decimales en el JSON original y el valor > 1000000, dividir
+      if (monto > 10000000) monto = monto / 100;
       const fecha = datos.fecha ? datos.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
       const tipo  = datos.tipoCmp || datos.tipo_cmp || '';
       const cuit  = datos.cuit || datos.emisor?.cuit || '';
@@ -1015,17 +1043,10 @@ function procesarQRAfip(rawValue) {
       const tipoNombre = {1:'Factura A', 6:'Factura B', 11:'Factura C', 51:'Factura M', 81:'Tique'}[tipo] || 'Factura';
       const desc = `${tipoNombre}${cuit ? ' CUIT:'+cuit : ''}`;
       
-      // Pre-llenar y guardar
       const fechaFmt = fecha.slice(0,10);
       cerrarEscaner();
-      
-      // Guardar directo
-      const categoria = document.getElementById('categoria').value || 'Otros';
-      gastos.unshift({id: Date.now(), desc, monto: parseFloat(monto), categoria, fecha: fechaFmt});
-      guardar(); renderAll();
-      
-      // Mostrar feedback
-      mostrarToast(`✅ Gasto registrado: $ ${fmt0(monto)}`);
+      // Mostrar modal para elegir dónde registrar
+      mostrarModalDestino(monto, desc, fechaFmt);
     } else {
       document.getElementById('qrStatus').textContent = '⚠️ QR no reconocido como factura AFIP. Intentá de nuevo.';
       _qrInterval = setInterval(escanearFrame, 400);
@@ -1042,6 +1063,38 @@ function mostrarToast(msg) {
   t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#43e97b;color:#0f0f13;padding:12px 20px;border-radius:12px;font-weight:600;font-size:0.9rem;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.4s';
   document.body.appendChild(t);
   setTimeout(() => { t.style.opacity='0'; setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+let _qrDatos = null;
+function mostrarModalDestino(monto, desc, fecha) {
+  _qrDatos = {monto, desc, fecha};
+  document.getElementById('qrDestinoMonto').textContent = '$ ' + fmt0(monto);
+  document.getElementById('qrDestinoDesc').textContent = desc;
+  document.getElementById('qrDestinoModal').style.display = 'flex';
+}
+
+function registrarDesdeQR(tipo) {
+  document.getElementById('qrDestinoModal').style.display = 'none';
+  if (!_qrDatos) return;
+  const {monto, desc, fecha} = _qrDatos;
+  if (tipo === 'gasto') {
+    const categoria = document.getElementById('categoria').value || 'Otros';
+    gastos.unshift({id: Date.now(), desc, monto, categoria, fecha});
+    guardar(); renderAll();
+    setTab('gastos');
+    mostrarToast(`✅ Gasto registrado: $ ${fmt0(monto)}`);
+  } else {
+    // Servicio — mostrar selector de servicio
+    const mes = mesGlobal();
+    const key = prompt('¿Qué servicio es?\nOpciones: ALQUILER, EXPENSAS, EDENOR, METROGAS, INTERNET, AGIP') || 'ALQUILER';
+    const keyUp = key.toUpperCase().trim();
+    if (!serviciosLS[mes]) serviciosLS[mes] = {};
+    serviciosLS[mes][keyUp] = monto;
+    guardarServ(); renderServicios();
+    setTab('servicios');
+    mostrarToast(`✅ Servicio registrado: $ ${fmt0(monto)}`);
+  }
+  _qrDatos = null;
 }
 
 function agregarGasto() {
