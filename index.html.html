@@ -95,16 +95,16 @@
 
   /* LISTA */
   .gastos-list{display:flex;flex-direction:column;gap:10px;}
-  .gasto-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;display:flex;align-items:center;gap:14px;animation:fadeUp 0.3s ease;transition:all 0.2s;}
+  .gasto-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;animation:fadeUp 0.3s ease;transition:all 0.2s;}
   .gasto-item:hover{background:var(--surface2);}
   .gasto-item.pagado{background:rgba(67,233,123,0.07);border-color:rgba(67,233,123,0.3);}
   .gasto-item.pagado .gasto-amount{color:#43e97b;}
   .gasto-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
   .gasto-info{flex:1;min-width:0;}
-  .gasto-desc{font-weight:500;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gasto-desc{font-weight:500;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .gasto-meta{font-size:0.78rem;color:var(--muted);margin-top:2px;display:flex;gap:8px;}
   .gasto-cat-tag{border-radius:20px;padding:1px 8px;font-size:0.72rem;font-weight:500;}
-  .gasto-amount{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--accent2);white-space:nowrap;}
+  .gasto-amount{font-family:'DM Serif Display',serif;font-size:0.95rem;color:var(--accent2);flex-shrink:0;max-width:120px;text-align:right;word-break:break-word;}
   .btn-del{background:none;border:none;color:var(--border);cursor:pointer;font-size:1rem;padding:4px;border-radius:6px;transition:color 0.2s,background 0.2s;line-height:1;}
   .btn-del:hover{color:var(--accent2);background:rgba(255,101,132,0.1);}
   .card-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
@@ -185,9 +185,9 @@
   .banc-item-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
   .banc-item-info{flex:1;min-width:0;}
   .banc-item-name{font-weight:600;font-size:0.95rem;margin-bottom:2px;}
-  .banc-item-meta{font-size:0.78rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
-  .banc-item-amount{text-align:right;flex-shrink:0;}
-  .banc-item-cuota{font-family:'DM Serif Display',serif;font-size:1.1rem;color:#ff6584;}
+  .banc-item-meta{font-size:0.75rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
+  .banc-item-amount{text-align:right;flex-shrink:0;max-width:110px;}
+  .banc-item-cuota{font-family:'DM Serif Display',serif;font-size:0.95rem;color:#ff6584;word-break:break-word;}
   .banc-item-label{font-size:0.7rem;color:var(--muted);margin-top:2px;}
   .banc-badge{border-radius:20px;padding:2px 10px;font-size:0.72rem;font-weight:500;}
   .banc-form-sep{height:1px;background:var(--border);margin:16px 0;}
@@ -216,7 +216,7 @@
   .ing-item-info{flex:1;min-width:0;}
   .ing-item-desc{font-weight:500;font-size:0.95rem;}
   .ing-item-meta{font-size:0.78rem;color:var(--muted);margin-top:2px;display:flex;gap:8px;}
-  .ing-item-amount{font-family:'DM Serif Display',serif;font-size:1.15rem;color:#43e97b;white-space:nowrap;}
+  .ing-item-amount{font-family:'DM Serif Display',serif;font-size:0.95rem;color:#43e97b;word-break:break-word;max-width:110px;text-align:right;}
   .mes-global{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 18px;}
   .mes-global-label{font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;white-space:nowrap;}
   .mes-global select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:0.92rem;font-weight:500;flex:1;max-width:240px;}
@@ -365,7 +365,7 @@
   <div id="qrModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;flex-direction:column;align-items:center;justify-content:center;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;width:92%;max-width:400px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <div style="font-size:1rem;font-weight:600">📷 Escanear QR AFIP</div>
+        <div style="font-size:1rem;font-weight:600">📷 Escanear QR</div>
         <button onclick="cerrarEscaner()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
       </div>
       <div style="position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:1">
@@ -427,7 +427,7 @@
   <header>
     <h1>💸 Mis Gastos</h1>
     <button onclick="abrirEscaner()" style="margin-top:12px;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;border:none;border-radius:14px;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(108,99,255,0.4);">
-      📷 Escanear QR AFIP
+      📷 Escanear QR
     </button>
   </header>
 
@@ -1019,6 +1019,7 @@ function procesarQRAfip(rawValue) {
     }
 
     if (datos) {
+      console.log('QR AFIP datos:', JSON.stringify(datos));
       // Normalizar monto — AFIP puede enviar "59000.00" o "59.000,00"
       const rawMonto = String(datos.importe || datos.imp_total || datos.importeTotal || 0);
       let monto = 0;
@@ -1029,12 +1030,14 @@ function procesarQRAfip(rawValue) {
         // Formato "59000,00" — coma=decimal
         monto = parseFloat(rawMonto.replace(',','.'));
       } else {
-        // Formato "59000.00" — punto=decimal (estándar AFIP)
+        // Formato "59000.00" o "5900000" — punto=decimal (estándar AFIP)
         monto = parseFloat(rawMonto);
       }
-      // AFIP a veces envía el monto en centavos — si es demasiado grande, dividir por 100
-      // Heurística: si tiene exactamente 2 decimales en el JSON original y el valor > 1000000, dividir
-      if (monto > 10000000) monto = monto / 100;
+      // AFIP envía el importe en centavos (sin punto decimal) — dividir por 100
+      // Si el rawMonto no tiene punto ni coma, es centavos
+      if (!rawMonto.includes('.') && !rawMonto.includes(',') && monto > 0) {
+        monto = monto / 100;
+      }
       const fecha = datos.fecha ? datos.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
       const tipo  = datos.tipoCmp || datos.tipo_cmp || '';
       const cuit  = datos.cuit || datos.emisor?.cuit || '';
@@ -1711,7 +1714,7 @@ function renderBancario() {
           </div>
         </div>
         <div class="banc-item-amount">
-          <div class="banc-item-cuota">$ ${fmt0(p.cuota)}</div>
+          <div class="banc-item-cuota" style="font-size:0.9rem;word-break:break-word;">$ ${fmt0(p.cuota)}</div>
           <div class="banc-item-label">cuota</div>
         </div>
         <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
@@ -1738,7 +1741,7 @@ function renderBancario() {
           <div class="banc-item-meta">${vencStr ? `<span>Vence: ${vencStr}</span>` : ''}</div>
         </div>
         <div class="banc-item-amount">
-          <div class="banc-item-cuota" style="color:${pagado?'#43e97b':color}">$ ${fmt0(t.monto)}</div>
+          <div class="banc-item-cuota" style="color:${pagado?'#43e97b':color};font-size:0.9rem;word-break:break-word;">$ ${fmt0(t.monto)}</div>
           <div class="banc-item-label">resumen</div>
         </div>
         <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
@@ -1867,7 +1870,7 @@ function renderIngresos() {
           ${fechaStr?`<span>${fechaStr}</span>`:''}
         </div>
       </div>
-      <div class="ing-item-amount">+ $ ${fmt(i.monto)}</div>
+      <div class="ing-item-amount" style="flex-shrink:0;max-width:120px;text-align:right;">+ $ ${fmt(i.monto)}</div>
       <button class="btn-del" onclick="editarIngreso('${i.id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
       <button class="btn-del" onclick="eliminarIngreso('${i.id}')">✕</button>
     </div>`;
