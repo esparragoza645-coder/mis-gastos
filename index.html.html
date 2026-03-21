@@ -95,16 +95,15 @@
 
   /* LISTA */
   .gastos-list{display:flex;flex-direction:column;gap:10px;}
-  .gasto-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;animation:fadeUp 0.3s ease;transition:all 0.2s;}
+  .gasto-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;animation:fadeUp 0.3s ease;transition:all 0.2s;}
   .gasto-item:hover{background:var(--surface2);}
   .gasto-item.pagado{background:rgba(67,233,123,0.07);border-color:rgba(67,233,123,0.3);}
-  .gasto-item.pagado .gasto-amount{color:#43e97b;}
-  .gasto-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
-  .gasto-info{flex:1;min-width:0;}
-  .gasto-desc{font-weight:500;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .gasto-meta{font-size:0.78rem;color:var(--muted);margin-top:2px;display:flex;gap:8px;}
-  .gasto-cat-tag{border-radius:20px;padding:1px 8px;font-size:0.72rem;font-weight:500;}
-  .gasto-amount{font-family:'DM Serif Display',serif;font-size:0.95rem;color:var(--accent2);flex-shrink:0;max-width:120px;text-align:right;word-break:break-word;}
+  .gasto-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;margin-top:2px;}
+  .gasto-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .gasto-desc{font-weight:600;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gasto-meta{font-size:0.72rem;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .gasto-cat-tag{border-radius:20px;padding:1px 7px;font-size:0.68rem;font-weight:500;}
+  .gasto-amount{font-family:'DM Serif Display',serif;font-size:0.95rem;color:var(--accent2);}
   .btn-del{background:none;border:none;color:var(--border);cursor:pointer;font-size:1rem;padding:4px;border-radius:6px;transition:color 0.2s,background 0.2s;line-height:1;}
   .btn-del:hover{color:var(--accent2);background:rgba(255,101,132,0.1);}
   .card-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
@@ -601,13 +600,7 @@
     <!-- Cards por tipo -->
     <div class="ing-tipos" id="ingTipos"></div>
 
-    <!-- Historial -->
-    <div class="card">
-      <h2>📋 Historial de Ingresos</h2>
-      <div class="gastos-list" id="ingLista"></div>
-    </div>
-
-    <!-- Formulario -->
+    <!-- Formulario PRIMERO -->
     <div class="card">
       <h2>➕ Registrar Ingreso</h2>
       <div class="form-grid">
@@ -624,6 +617,12 @@
         <div class="form-group"><label>Descripción (opcional)</label><input type="text" id="ing_desc" placeholder="Ej: Sueldo marzo, bono, freelance..."/></div>
       </div>
       <button class="btn-add" onclick="agregarIngreso()">Registrar Ingreso</button>
+    </div>
+
+    <!-- Historial AL FINAL -->
+    <div class="card">
+      <h2>📋 Historial de Ingresos</h2>
+      <div class="gastos-list" id="ingLista"></div>
     </div>
 
   </div>
@@ -1081,7 +1080,7 @@ function registrarDesdeQR(tipo) {
   if (!_qrDatos) return;
   const {monto, desc, fecha} = _qrDatos;
   if (tipo === 'gasto') {
-    const categoria = document.getElementById('categoria').value || 'Otros';
+    const categoria = 'Otros'; // QR no puede determinar categoría
     gastos.unshift({id: Date.now(), desc, monto, categoria, fecha});
     guardar(); renderAll();
     setTab('gastos');
@@ -1252,17 +1251,19 @@ function renderLista() {
     const clave=`gasto_${g.id}`, pagado=isPagado(mes, clave);
     return `<div class="gasto-item ${pagado?'pagado':''}">
       <div class="gasto-icon" style="background:${pagado?'rgba(67,233,123,0.15)':cat.bg}">${cat.icon}</div>
-      <div class="gasto-info">
-        <div class="gasto-desc">${g.desc}${pagado?' <span style="font-size:0.7rem;color:#43e97b">✓</span>':''}</div>
+      <div class="gasto-info" style="flex:1;min-width:0;">
+        <div class="gasto-desc">${g.desc}${pagado?' <span style="font-size:0.65rem;color:#43e97b">✓</span>':''}</div>
         <div class="gasto-meta">
           <span class="gasto-cat-tag" style="background:${cat.bg};color:${cat.color}">${g.categoria}</span>
           ${fechaStr?`<span>${fechaStr}</span>`:''}
         </div>
+        <div class="gasto-amount" style="margin-top:4px;font-size:1rem;color:${pagado?'#43e97b':'var(--accent2)'}">$ ${fmt(g.monto)}</div>
       </div>
-      <div class="gasto-amount">$ ${fmt(g.monto)}</div>
-      <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoGasto('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
-      <button class="btn-del" onclick="editarGasto('${g.id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
-      <button class="btn-del" onclick="eliminar('${g.id}')">✕</button>
+      <div style="display:flex;gap:3px;flex-shrink:0;">
+        <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoGasto('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
+        <button class="btn-del" onclick="editarGasto('${g.id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
+        <button class="btn-del" onclick="eliminar('${g.id}')">✕</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1706,20 +1707,19 @@ function renderBancario() {
       const clave = `prest_${id}`, pagado = isPagado(mes, clave);
       return `<div class="banc-item ${pagado?'pagado':''}">
         <div class="banc-item-icon" style="background:${pagado?'rgba(67,233,123,0.15)':'rgba(225,112,85,0.15)'}">🏛️</div>
-        <div class="banc-item-info">
+        <div class="banc-item-info" style="flex:1;min-width:0;">
           <div class="banc-item-name">${p.nombre}${pagado?' <span style="font-size:0.7rem;color:#43e97b">✓ Pagado</span>':''}</div>
           <div class="banc-item-meta">
-            ${p.restantes ? `<span class="banc-badge" style="background:rgba(108,99,255,0.15);color:#a29bfe">${p.restantes} cuotas restantes</span>` : ''}
+            ${p.restantes ? `<span class="banc-badge" style="background:rgba(108,99,255,0.15);color:#a29bfe">${p.restantes} cuotas</span>` : ''}
             ${vencStr ? `<span>Vence: ${vencStr}</span>` : ''}
           </div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1rem;color:#ff6584;margin-top:4px">$ ${fmt0(p.cuota)} <span style="font-size:0.7rem;color:var(--muted)">cuota</span></div>
         </div>
-        <div class="banc-item-amount">
-          <div class="banc-item-cuota" style="font-size:0.9rem;word-break:break-word;">$ ${fmt0(p.cuota)}</div>
-          <div class="banc-item-label">cuota</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+          <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
+          <button class="btn-del" onclick="editarPrestamo('${mes}','${id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
+          <button class="btn-del" onclick="eliminarPrestamo('${mes}','${id}')">✕</button>
         </div>
-        <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
-        <button class="btn-del" onclick="editarPrestamo('${mes}','${id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
-        <button class="btn-del" onclick="eliminarPrestamo('${mes}','${id}')">✕</button>
       </div>`;
     }).join('');
   }
@@ -1736,17 +1736,16 @@ function renderBancario() {
       const clave = `tdc_${id}`, pagado = isPagado(mes, clave);
       return `<div class="banc-item ${pagado?'pagado':''}">
         <div class="banc-item-icon" style="background:${pagado?'rgba(67,233,123,0.15)':color+'33'}">💳</div>
-        <div class="banc-item-info">
+        <div class="banc-item-info" style="flex:1;min-width:0;">
           <div class="banc-item-name">${t.nombre}${pagado?' <span style="font-size:0.7rem;color:#43e97b">✓ Pagado</span>':''}</div>
           <div class="banc-item-meta">${vencStr ? `<span>Vence: ${vencStr}</span>` : ''}</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1rem;color:${pagado?'#43e97b':color};margin-top:4px">$ ${fmt0(t.monto)} <span style="font-size:0.7rem;color:var(--muted)">resumen</span></div>
         </div>
-        <div class="banc-item-amount">
-          <div class="banc-item-cuota" style="color:${pagado?'#43e97b':color};font-size:0.9rem;word-break:break-word;">$ ${fmt0(t.monto)}</div>
-          <div class="banc-item-label">resumen</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;align-items:center;">
+          <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
+          <button class="btn-del" onclick="editarTarjeta('${mes}','${id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
+          <button class="btn-del" onclick="eliminarTarjeta('${mes}','${id}')">✕</button>
         </div>
-        <button class="btn-pago ${pagado?'pagado':''}" onclick="togglePagoBanc('${mes}','${clave}')" title="${pagado?'Desmarcar':'Marcar como pagado'}">✓</button>
-        <button class="btn-del" onclick="editarTarjeta('${mes}','${id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
-        <button class="btn-del" onclick="eliminarTarjeta('${mes}','${id}')">✕</button>
       </div>`;
     }).join('');
   }
@@ -1863,16 +1862,18 @@ function renderIngresos() {
     const fechaStr = i.fecha ? new Date(i.fecha+'T00:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}) : '';
     return `<div class="ing-item">
       <div class="ing-item-icon" style="background:${c.bg}">${c.icon}</div>
-      <div class="ing-item-info">
-        <div class="ing-item-desc">${i.desc}</div>
-        <div class="ing-item-meta">
-          <span style="background:${c.bg};color:${c.color};border-radius:20px;padding:1px 8px;font-size:0.72rem">${i.tipo}</span>
-          ${fechaStr?`<span>${fechaStr}</span>`:''}
+      <div class="ing-item-info" style="flex:1;min-width:0;">
+        <div class="ing-item-desc" style="font-size:0.9rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.desc}</div>
+        <div class="ing-item-meta" style="margin-top:2px;">
+          <span style="background:${c.bg};color:${c.color};border-radius:20px;padding:1px 8px;font-size:0.7rem">${i.tipo}</span>
+          ${fechaStr?`<span style="font-size:0.72rem;color:var(--muted)">${fechaStr}</span>`:''}
         </div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1rem;color:#43e97b;margin-top:4px">+ $ ${fmt(i.monto)}</div>
       </div>
-      <div class="ing-item-amount" style="flex-shrink:0;max-width:120px;text-align:right;">+ $ ${fmt(i.monto)}</div>
-      <button class="btn-del" onclick="editarIngreso('${i.id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
-      <button class="btn-del" onclick="eliminarIngreso('${i.id}')">✕</button>
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button class="btn-del" onclick="editarIngreso('${i.id}')" title="Editar" style="background:rgba(108,99,255,0.15);color:#a29bfe;border-color:rgba(108,99,255,0.3)">✏️</button>
+        <button class="btn-del" onclick="eliminarIngreso('${i.id}')">✕</button>
+      </div>
     </div>`;
   }).join('');
 }
