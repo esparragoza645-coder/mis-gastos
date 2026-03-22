@@ -508,7 +508,7 @@
             <option value="EDENOR">⚡ Luz</option>
             <option value="METROGAS">🔥 Gas</option>
             <option value="INTERNET">🌐 Internet</option>
-            <option value="AGIP">🍳 AGIP</option>
+            <option value="OTROS">📦 Otros</option>
           </select>
         </div>
         <div class="form-group">
@@ -903,7 +903,7 @@ const CATS = {
   Luz:             {color:'#fdcb6e',icon:'⚡',bg:'rgba(253,203,110,0.15)'},
   Gas:             {color:'#ff7675',icon:'🔥',bg:'rgba(255,118,117,0.15)'},
   Internet:        {color:'#81ecec',icon:'🌐',bg:'rgba(129,236,236,0.15)'},
-  AGIP:            {color:'#fab1a0',icon:'🍳',bg:'rgba(250,177,160,0.15)'},
+  'Otros servicios': {color:'#fab1a0',icon:'📦',bg:'rgba(250,177,160,0.15)'},
   Otros:           {color:'#fd79a8',icon:'📦',bg:'rgba(253,121,168,0.15)'},
 };
 
@@ -913,7 +913,7 @@ const SERVICIOS_DEF = [
   {key:'EDENOR',   label:'Luz',       icon:'⚡', color:'#fdcb6e'},
   {key:'METROGAS', label:'Gas',       icon:'🔥', color:'#ff7675'},
   {key:'INTERNET', label:'Internet',  icon:'🌐', color:'#81ecec'},
-  {key:'AGIP',     label:'AGIP',      icon:'🍳', color:'#fab1a0'},
+  {key:'OTROS',    label:'Otros',     icon:'📦', color:'#fab1a0'},
 ];
 
 let filtroActivo = 'Todos';
@@ -931,7 +931,7 @@ const mesActual  = () => new Date().toISOString().slice(0,7);
 const gastosDelMes = mes => gastos.filter(g => g.fecha && g.fecha.startsWith(mes));
 
 // Categorías que pertenecen al panel de Servicios del Hogar — se excluyen del resumen general
-const CATS_SERVICIOS = new Set(['Alquiler','Expensas','Luz','Gas','Internet','AGIP']);
+const CATS_SERVICIOS = new Set(['Alquiler','Expensas','Luz','Gas','Internet','Otros servicios']);
 const gastosPersonales = arr => arr.filter(g => !CATS_SERVICIOS.has(g.categoria));
 
 // ── TABS ──
