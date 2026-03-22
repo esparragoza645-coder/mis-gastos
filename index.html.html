@@ -379,18 +379,23 @@
     </div>
   </div>
 
-  <!-- MODAL DESTINO QR -->
+  <!-- MODAL CATEGORÍA QR -->
   <div id="qrDestinoModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:center;justify-content:center;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:320px;width:90%;text-align:center;">
-      <div style="font-size:1.8rem;margin-bottom:8px">📋</div>
-      <div id="qrDestinoMonto" style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--accent);margin-bottom:4px"></div>
-      <div id="qrDestinoDesc" style="font-size:0.8rem;color:var(--muted);margin-bottom:20px"></div>
-      <div style="font-size:0.88rem;font-weight:600;margin-bottom:12px">¿Dónde registrás este gasto?</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <button onclick="registrarDesdeQR('gasto')" style="padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">📋 Gastos personales</button>
-        <button onclick="registrarDesdeQR('servicio')" style="padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;">🏠 Servicios del hogar</button>
-        <button onclick="document.getElementById('qrDestinoModal').style.display='none'" style="padding:10px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.85rem;cursor:pointer;">Cancelar</button>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:320px;width:90%;">
+      <div style="font-size:1.8rem;text-align:center;margin-bottom:6px">🧾</div>
+      <div id="qrDestinoMonto" style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--accent);text-align:center;margin-bottom:2px"></div>
+      <div id="qrDestinoDesc" style="font-size:0.78rem;color:var(--muted);text-align:center;margin-bottom:18px"></div>
+      <div style="font-size:0.88rem;font-weight:600;margin-bottom:10px">¿En qué categoría lo registrás?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button onclick="registrarDesdeQR('Comida')"          style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">🍔 Comida</button>
+        <button onclick="registrarDesdeQR('Transporte')"      style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">🚌 Transporte</button>
+        <button onclick="registrarDesdeQR('Entretenimiento')" style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">🎬 Entret.</button>
+        <button onclick="registrarDesdeQR('Salud')"           style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">💊 Salud</button>
+        <button onclick="registrarDesdeQR('Hogar')"           style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">🏠 Hogar</button>
+        <button onclick="registrarDesdeQR('Educación')"       style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">📚 Educación</button>
+        <button onclick="registrarDesdeQR('Otros')"           style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;grid-column:span 2;">📦 Otros</button>
       </div>
+      <button onclick="document.getElementById('qrDestinoModal').style.display='none'" style="width:100%;padding:9px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Cancelar</button>
     </div>
   </div>
   <!-- MODAL CONFIRMAR ELIMINACIÓN -->
@@ -1075,27 +1080,14 @@ function mostrarModalDestino(monto, desc, fecha) {
   document.getElementById('qrDestinoModal').style.display = 'flex';
 }
 
-function registrarDesdeQR(tipo) {
+function registrarDesdeQR(categoria) {
   document.getElementById('qrDestinoModal').style.display = 'none';
   if (!_qrDatos) return;
   const {monto, desc, fecha} = _qrDatos;
-  if (tipo === 'gasto') {
-    const categoria = 'Otros'; // QR no puede determinar categoría
-    gastos.unshift({id: Date.now(), desc, monto, categoria, fecha});
-    guardar(); renderAll();
-    setTab('gastos');
-    mostrarToast(`✅ Gasto registrado: $ ${fmt0(monto)}`);
-  } else {
-    // Servicio — mostrar selector de servicio
-    const mes = mesGlobal();
-    const key = prompt('¿Qué servicio es?\nOpciones: ALQUILER, EXPENSAS, EDENOR, METROGAS, INTERNET, AGIP') || 'ALQUILER';
-    const keyUp = key.toUpperCase().trim();
-    if (!serviciosLS[mes]) serviciosLS[mes] = {};
-    serviciosLS[mes][keyUp] = monto;
-    guardarServ(); renderServicios();
-    setTab('servicios');
-    mostrarToast(`✅ Servicio registrado: $ ${fmt0(monto)}`);
-  }
+  gastos.unshift({id: Date.now(), desc, monto, categoria, fecha});
+  guardar(); renderAll();
+  setTab('gastos');
+  mostrarToast(`✅ ${categoria}: $ ${fmt0(monto)}`);
   _qrDatos = null;
 }
 
