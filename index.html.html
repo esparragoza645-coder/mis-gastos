@@ -1049,8 +1049,11 @@ function procesarQRAfip(rawValue) {
 
     if (datos) {
       console.log('QR AFIP datos:', JSON.stringify(datos));
+
+      // Versión 2 — solo trae CUIT, sin monto
+      const esV2 = datos.ver === 2 || (!datos.importe && !datos.imp_total && !datos.importeTotal);
+
       // El campo "importe" de AFIP ya viene en pesos enteros (ej: 35000 = $35.000)
-      // No dividir por 100 — es el valor real
       const rawMonto = datos.importe ?? datos.imp_total ?? datos.importeTotal ?? datos.ImpTotal ?? 0;
       let monto = 0;
       if (typeof rawMonto === 'number') {
@@ -1065,18 +1068,27 @@ function procesarQRAfip(rawValue) {
           monto = parseFloat(s) || 0;
         }
       }
-      const fecha = datos.fecha ? datos.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
+
+      const fecha = datos.fecha ? datos.fecha.slice(0,10) : new Date().toISOString().slice(0,10);
       const tipo  = datos.tipoCmp || datos.tipo_cmp || '';
-      const cuit  = datos.cuit || datos.emisor?.cuit || '';
-      
-      // Determinar descripción según tipo de comprobante
-      const tipoNombre = {1:'Factura A', 6:'Factura B', 11:'Factura C', 51:'Factura M', 81:'Tique'}[tipo] || 'Factura';
+      const cuit  = datos.cuit || '';
+      const tipoNombre = {1:'Factura A',6:'Factura B',11:'Factura C',51:'Factura M',81:'Tique'}[tipo] || 'Factura';
       const desc = `${tipoNombre}${cuit ? ' CUIT:'+cuit : ''}`;
-      
-      const fechaFmt = fecha.slice(0,10);
+
       cerrarEscaner();
-      // Mostrar modal para elegir dónde registrar
-      mostrarModalDestino(monto, desc, fechaFmt);
+
+      if (esV2 || monto === 0) {
+        // QR v2 — pre-llenar formulario y pedir monto al usuario
+        setTab('gastos');
+        document.getElementById('desc').value = desc;
+        document.getElementById('fecha').value = fecha;
+        document.getElementById('monto').value = '';
+        document.getElementById('monto').focus();
+        mostrarToast('📋 Completá el monto y la categoría');
+      } else {
+        // QR v1 con monto — mostrar modal de categoría
+        mostrarModalDestino(monto, desc, fecha);
+      }
     } else {
       document.getElementById('qrStatus').textContent = '⚠️ QR no reconocido como factura AFIP. Intentá de nuevo.';
       _qrInterval = setInterval(escanearFrame, 400);
