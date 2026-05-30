@@ -349,6 +349,7 @@
           <button class="btn-theme" id="btnNotif" onclick="toggleNotifPanel()" title="Recordatorios">🔔</button>
           <span class="notif-badge" id="notifBadge" style="display:none">0</span>
         </div>
+        <button class="btn-theme" onclick="iniciarTour()" title="Tour de la app" style="font-size:0.85rem;font-weight:700">?</button>
         <button class="btn-theme" id="btnTheme" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
         <button class="btn-logout" id="btnLogout">Salir</button>
       </div>
@@ -402,6 +403,24 @@
         <button onclick="registrarDesdeQR('Otros')"           style="padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;grid-column:span 2;">📦 Otros</button>
       </div>
       <button onclick="document.getElementById('qrDestinoModal').style.display='none'" style="width:100%;padding:9px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- MODAL TOUR -->
+  <div id="tourOverlay" style="display:none;position:fixed;inset:0;z-index:999998;pointer-events:none;">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);pointer-events:all;" onclick="cerrarTour()"></div>
+  </div>
+  <div id="tourCard" style="display:none;position:fixed;z-index:999999;background:var(--surface);border:2px solid var(--accent);border-radius:18px;padding:20px;max-width:300px;width:88%;box-shadow:0 8px 40px rgba(108,99,255,0.4);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div id="tourEmoji" style="font-size:1.8rem"></div>
+      <div style="font-size:0.75rem;color:var(--muted)" id="tourPaso"></div>
+    </div>
+    <div id="tourTitulo" style="font-weight:700;font-size:1rem;margin-bottom:6px;color:var(--text)"></div>
+    <div id="tourDesc" style="font-size:0.83rem;color:var(--muted);line-height:1.5;margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
+      <button onclick="pasoTour(-1)" id="tourBtnPrev" style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;">← Anterior</button>
+      <div id="tourDots" style="display:flex;gap:4px;"></div>
+      <button onclick="pasoTour(1)" id="tourBtnNext" style="padding:8px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#6c63ff,#a29bfe);color:white;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;">Siguiente →</button>
     </div>
   </div>
   <!-- MODAL CONFIRMAR ELIMINACIÓN -->
@@ -660,17 +679,8 @@
     </div>
   </div>
 
-  
 </div>
-<!-- BOTÓN CAFECITO -->
-<div style="text-align:center;padding:2rem 1rem 1rem;margin-top:12px;border-top:1px solid var(--border);">
-  <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">¿Te es útil esta app? Invitame un cafecito ☕</p>
-  <a href="https://cafecito.app/misgastos" rel="noopener" target="_blank"
-     style="display:inline-flex;align-items:center;gap:10px;padding:12px 26px;border-radius:999px;background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:white;font-family:'DM Sans',sans-serif;font-size:0.92rem;font-weight:600;text-decoration:none;box-shadow:0 4px 18px rgba(108,99,255,0.35);">
-    ☕ Invitame un cafecito
-  </a>
-  <p style="font-size:0.72rem;color:var(--muted);margin-top:10px;opacity:0.6;">cafecito.app/misgastos</p>
-</div></div><!-- /appContainer -->
+</div><!-- /appContainer -->
 
 <!-- FIREBASE -->
 <script type="module">
@@ -1039,23 +1049,21 @@ function procesarQRAfip(rawValue) {
 
     if (datos) {
       console.log('QR AFIP datos:', JSON.stringify(datos));
-      // Normalizar monto — AFIP puede enviar "59000.00" o "59.000,00"
-      const rawMonto = String(datos.importe || datos.imp_total || datos.importeTotal || 0);
+      // El campo "importe" de AFIP ya viene en pesos enteros (ej: 35000 = $35.000)
+      // No dividir por 100 — es el valor real
+      const rawMonto = datos.importe ?? datos.imp_total ?? datos.importeTotal ?? datos.ImpTotal ?? 0;
       let monto = 0;
-      if (rawMonto.includes(',') && rawMonto.includes('.')) {
-        // Formato "59.000,00" — punto=miles, coma=decimal
-        monto = parseFloat(rawMonto.replace(/\./g,'').replace(',','.'));
-      } else if (rawMonto.includes(',')) {
-        // Formato "59000,00" — coma=decimal
-        monto = parseFloat(rawMonto.replace(',','.'));
+      if (typeof rawMonto === 'number') {
+        monto = rawMonto;
       } else {
-        // Formato "59000.00" o "5900000" — punto=decimal (estándar AFIP)
-        monto = parseFloat(rawMonto);
-      }
-      // AFIP envía el importe en centavos (sin punto decimal) — dividir por 100
-      // Si el rawMonto no tiene punto ni coma, es centavos
-      if (!rawMonto.includes('.') && !rawMonto.includes(',') && monto > 0) {
-        monto = monto / 100;
+        const s = String(rawMonto);
+        if (s.includes(',') && s.includes('.')) {
+          monto = parseFloat(s.replace(/\./g,'').replace(',','.'));
+        } else if (s.includes(',')) {
+          monto = parseFloat(s.replace(',','.'));
+        } else {
+          monto = parseFloat(s) || 0;
+        }
       }
       const fecha = datos.fecha ? datos.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
       const tipo  = datos.tipoCmp || datos.tipo_cmp || '';
@@ -2000,6 +2008,89 @@ function aplicarTemaGuardado() {
   if (btn) btn.textContent = t === 'dark' ? '🌙' : '☀️';
 }
 aplicarTemaGuardado();
+
+// ══════════════════════════════════════════════
+//  TOUR INTERACTIVO
+// ══════════════════════════════════════════════
+const TOUR_PASOS = [
+  { emoji:'👋', titulo:'¡Bienvenido a Mis Gastos!', desc:'Este tour te va a guiar por todas las funciones de la app. Tomá 2 minutos para conocerla bien.', tab:null, highlight:null },
+  { emoji:'📋', titulo:'Gastos personales', desc:'Acá registrás tus gastos del día a día. Elegís la categoría, el monto, una descripción y la fecha. También podés escanear una factura con el QR.', tab:'gastos', highlight:null },
+  { emoji:'📷', titulo:'Escanear QR', desc:'En el celular podés escanear el código QR de una factura AFIP y la app registra el monto automáticamente. Solo elegís la categoría.', tab:'gastos', highlight:'btnEscanearQR' },
+  { emoji:'🏠', titulo:'Servicios del hogar', desc:'Registrá los gastos fijos del mes: alquiler, expensas, luz, gas, internet y otros. Podés marcarlos como pagados con el tilde ✓.', tab:'servicios', highlight:null },
+  { emoji:'🏦', titulo:'Bancario', desc:'Cargá tus préstamos y resúmenes de tarjetas de crédito por mes. Cada mes es independiente — lo que cargaste en febrero no aparece en marzo.', tab:'bancario', highlight:null },
+  { emoji:'💰', titulo:'Ingresos', desc:'Registrá tu sueldo, SAC o cualquier otro ingreso. Podés ver el balance del mes: cuánto ganaste vs cuánto gastaste.', tab:'ingresos', highlight:null },
+  { emoji:'📊', titulo:'Gráficos', desc:'Visualizá la evolución de tus ingresos y egresos mes a mes. Muy útil para ver tendencias a lo largo del año.', tab:'graficos', highlight:null },
+  { emoji:'📅', titulo:'Resumen mensual', desc:'Un resumen completo del mes: ingresos, gastos por categoría, servicios y bancario. Todo en un solo lugar.', tab:'resumen', highlight:null },
+  { emoji:'☕', titulo:'¿Te fue útil la app?', desc:'Si Mis Gastos te ayuda a ordenar tus finanzas, podés invitar un cafecito para apoyar el desarrollo. ¡Gracias!', tab:null, highlight:null, cafecito:true },
+];
+
+let _tourPaso = 0;
+let _tourHighlightEl = null;
+
+function iniciarTour() {
+  _tourPaso = 0;
+  document.getElementById('tourOverlay').style.display = 'block';
+  document.getElementById('tourCard').style.display = 'block';
+  mostrarPasoTour();
+}
+
+function cerrarTour() {
+  document.getElementById('tourOverlay').style.display = 'none';
+  document.getElementById('tourCard').style.display = 'none';
+  if (_tourHighlightEl) { _tourHighlightEl.style.outline = ''; _tourHighlightEl = null; }
+}
+
+function pasoTour(dir) {
+  _tourPaso += dir;
+  if (_tourPaso < 0) _tourPaso = 0;
+  if (_tourPaso >= TOUR_PASOS.length) { cerrarTour(); return; }
+  mostrarPasoTour();
+}
+
+function mostrarPasoTour() {
+  const paso = TOUR_PASOS[_tourPaso];
+  const total = TOUR_PASOS.length;
+
+  // Quitar highlight anterior
+  if (_tourHighlightEl) { _tourHighlightEl.style.outline = ''; _tourHighlightEl = null; }
+
+  // Cambiar tab si corresponde
+  if (paso.tab) setTab(paso.tab);
+
+  // Highlight elemento
+  if (paso.highlight) {
+    const el = document.getElementById(paso.highlight);
+    if (el) { el.style.outline = '3px solid #6c63ff'; el.style.borderRadius = '8px'; _tourHighlightEl = el; }
+  }
+
+  // Actualizar contenido
+  document.getElementById('tourEmoji').textContent = paso.emoji;
+  document.getElementById('tourTitulo').textContent = paso.titulo;
+  document.getElementById('tourPaso').textContent = `${_tourPaso+1} / ${total}`;
+
+  let descHtml = paso.desc;
+  if (paso.cafecito) {
+    descHtml += `<br><br><a href="https://cafecito.app/esparragoza645" target="_blank" style="display:inline-block;margin-top:8px;padding:10px 18px;background:linear-gradient(135deg,#f7971e,#ffd200);color:#333;border-radius:12px;font-weight:700;font-size:0.85rem;text-decoration:none;">☕ Invitar un cafecito</a>`;
+  }
+  document.getElementById('tourDesc').innerHTML = descHtml;
+
+  // Dots
+  document.getElementById('tourDots').innerHTML = TOUR_PASOS.map((_,i) =>
+    `<div style="width:6px;height:6px;border-radius:50%;background:${i===_tourPaso?'var(--accent)':'var(--border)'};transition:background 0.3s"></div>`
+  ).join('');
+
+  // Botones
+  document.getElementById('tourBtnPrev').style.opacity = _tourPaso === 0 ? '0.3' : '1';
+  document.getElementById('tourBtnPrev').disabled = _tourPaso === 0;
+  document.getElementById('tourBtnNext').textContent = _tourPaso === total-1 ? 'Finalizar ✓' : 'Siguiente →';
+
+  // Posicionar la card centrada
+  const card = document.getElementById('tourCard');
+  card.style.left = '50%';
+  card.style.transform = 'translateX(-50%)';
+  card.style.bottom = '30px';
+  card.style.top = 'auto';
+}
 
 // ══════════════════════════════════════════════
 //  PWA — SERVICE WORKER + INSTALL
