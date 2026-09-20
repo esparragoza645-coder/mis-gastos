@@ -687,7 +687,7 @@
 
     <div class="card">
       <h2>🔁 Tus suscripciones</h2>
-      <p class="subs-hint">Se detectan solas a partir de tus gastos: mismo comercio, cobrado con regularidad (mensual, trimestral o anual). Los montos pueden variar por inflación o tipo de cambio: lo que cuenta es la regularidad de las fechas. También podés importar el resumen de tu tarjeta con el botón de importar de la pestaña Gastos.</p>
+      <p class="subs-hint">Se detectan solas a partir de tus gastos: mismo comercio con un cobro por mes durante 3 meses seguidos (o cada 3 meses / una vez al año). El día puede variar y los montos también (inflación, tipo de cambio). También podés importar el resumen de tu tarjeta con el botón de importar de la pestaña Gastos.</p>
       <div id="subsList"></div>
     </div>
 
@@ -2377,9 +2377,10 @@ function cerrarImport() {
 const SUBS_STOP = new Set(['PAGO','COMPRA','DEBITO','CUOTA','CUOTAS','MERPAGO','MP','TRANSFERENCIA',
   'SUSCRIPCION','MENSUAL','PLAN','SERVICIO','DEL','LOS','LAS','POR','CON','PARA']);
 
-// Detección automática: solo mensual/trimestral/anual (un gasto semanal regular suele ser un hábito, no una suscripción).
-const SUBS_CICLOS_DET = [
-  {dias:30,  tol:5,  label:'Mensual'},
+// La frecuencia mensual se detecta por meses calendario (ver subsTramoMensual): al cargar a mano, el día puede variar.
+// Trimestral y anual se detectan por intervalo entre cobros.
+const SUBS_MENSUAL = {dias:30, label:'Mensual'};
+const SUBS_CICLOS_INT = [
   {dias:91,  tol:8,  label:'Trimestral'},
   {dias:365, tol:12, label:'Anual'},
 ];
@@ -2422,6 +2423,37 @@ function subsAvanzar(iso, dias) {
   return d;
 }
 
+// Mensual: racha de 3+ meses calendario seguidos, con UN solo cobro por mes, que termina en el último mes con cobros.
+// No importa el día del mes ni que el monto cambie (inflación); sí que los montos no se disparen (evita compras de súper, etc.).
+function subsTramoMensual(arr) {
+  const porMes = {};
+  arr.forEach(t => (porMes[t.fecha.slice(0, 7)] = porMes[t.fecha.slice(0, 7)] || []).push(t));
+  const meses = Object.keys(porMes).sort();
+  const idx = m => { const [y, mo] = m.split('-').map(Number); return y * 12 + mo; };
+  const tramo = [];
+  for (let i = meses.length - 1; i >= 0; i--) {
+    if (porMes[meses[i]].length !== 1) break;
+    if (tramo.length && idx(meses[i + 1]) - idx(meses[i]) !== 1) break;
+    tramo.unshift(porMes[meses[i]][0]);
+  }
+  if (tramo.length < 3) return null;
+  const montos = tramo.slice(-6).map(t => t.monto);
+  if (Math.max(...montos) / Math.min(...montos) > 2) return null;
+  return {ciclo: SUBS_MENSUAL, tramo};
+}
+
+// Trimestral / anual: la mediana de los intervalos entre cobros cae en la ventana y al menos 75% de los intervalos es regular.
+function subsTramoPorIntervalo(arr) {
+  if (arr.length < 2) return null;
+  const gaps = arr.slice(1).map((t, i) => subsDias(subsF(arr[i].fecha), subsF(t.fecha)));
+  const med = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
+  const ciclo = SUBS_CICLOS_INT.find(c => Math.abs(med - c.dias) <= c.tol);
+  if (!ciclo) return null;
+  if (arr.length < 3 && ciclo.dias !== 365) return null;         // trimestral: mínimo 3 cobros; anual: 2
+  const regular = gaps.filter(d => Math.abs(d - ciclo.dias) <= ciclo.tol).length / gaps.length;
+  return regular >= 0.75 ? {ciclo, tramo: arr} : null;
+}
+
 // Detecta cobros recurrentes en una lista de gastos. Ignora el monto para agrupar (tolera inflación / tipo de cambio).
 function subsDetectar(gs, hoy) {
   hoy = hoy || subsHoy();
@@ -2436,20 +2468,15 @@ function subsDetectar(gs, hoy) {
   for (const [clave, arr0] of Object.entries(grupos)) {
     arr0.sort((a, b) => a.fecha.localeCompare(b.fecha));
     const arr = arr0.filter((t, i) => i === 0 || t.fecha !== arr0[i-1].fecha);   // un cobro por fecha
-    if (arr.length < 2) continue;
-    const gaps = arr.slice(1).map((t, i) => subsDias(subsF(arr[i].fecha), subsF(t.fecha)));
-    const med = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
-    const ciclo = SUBS_CICLOS_DET.find(c => Math.abs(med - c.dias) <= c.tol);
-    if (!ciclo) continue;
-    if (arr.length < 3 && ciclo.dias !== 365) continue;         // mensual/trimestral: mínimo 3 cobros; anual: 2
-    const regular = gaps.filter(d => Math.abs(d - ciclo.dias) <= ciclo.tol).length / gaps.length;
-    if (regular < 0.75) continue;
-    const ult = arr[arr.length - 1], prev = arr[arr.length - 2], prim = arr[0];
+    const det = subsTramoMensual(arr) || subsTramoPorIntervalo(arr);
+    if (!det) continue;
+    const {ciclo, tramo} = det;
+    const ult = tramo[tramo.length - 1], prev = tramo[tramo.length - 2], prim = tramo[0];
     out.push({
       clave, nombre: ult.desc, manual: false,
       ciclo: ciclo.dias, cicloLabel: ciclo.label,
       monto: ult.monto, mensual: subsMensual(ult.monto, ciclo.dias),
-      ultimaFecha: ult.fecha, primeraFecha: prim.fecha, cobros: arr.length,
+      ultimaFecha: ult.fecha, primeraFecha: prim.fecha, cobros: tramo.length,
       proximo: subsAvanzar(ult.fecha, ciclo.dias),
       inactiva: subsDias(subsF(ult.fecha), hoy) > ciclo.dias * 1.6,
       deltaUlt: ult.monto / prev.monto - 1, deltaTot: ult.monto / prim.monto - 1,
@@ -2471,17 +2498,31 @@ function subsManuales(hoy) {
   });
 }
 
+// Si una suscripción está cargada a mano Y se detecta sola, gana la detectada (montos reales; no se cuenta doble).
+// Si la detectada quedó inactiva (dejó de cobrarse), gana la manual.
 function subsTodas(hoy) {
   hoy = hoy || subsHoy();
   const det = subsDetectar(gastos, hoy).filter(s => !(subsLS[s.clave] && subsLS[s.clave].estado === 'ignorada'));
-  const activas = [...det.filter(s => !s.inactiva), ...subsManuales(hoy)].sort((a, b) => a.proximo - b.proximo);
-  const inactivas = det.filter(s => s.inactiva);
+  const manuales = subsManuales(hoy);
+  const detActivas = det.filter(s => !s.inactiva);
+  const clavesDetActivas = new Set(detActivas.map(s => s.clave));
+  const clavesManuales = new Set(manuales.map(m => subsClave(m.nombre)));
+  const activas = [...detActivas, ...manuales.filter(m => !clavesDetActivas.has(subsClave(m.nombre)))]
+    .sort((a, b) => a.proximo - b.proximo);
+  const inactivas = det.filter(s => s.inactiva && !clavesManuales.has(s.clave));
   const ignoradas = Object.entries(subsLS).filter(([, v]) => v && v.estado === 'ignorada')
     .map(([clave, v]) => ({clave, nombre: v.nombre || clave}));
   return {activas, inactivas, ignoradas};
 }
 
-const subsLink = s => (subsLS[s.clave] && subsLS[s.clave].link) || SUBS_GUIA[subsClave(s.nombre)] || '';
+// Link de gestión: el propio > el de una manual del mismo comercio > guía conocida.
+const subsLink = s => {
+  const propio = subsLS[s.clave] && subsLS[s.clave].link;
+  if (propio) return propio;
+  const c = subsClave(s.nombre);
+  const deManual = Object.values(subsLS).find(v => v && v.estado === 'manual' && v.link && subsClave(v.nombre) === c);
+  return (deManual && deManual.link) || SUBS_GUIA[c] || '';
+};
 // </SUBS-CORE>
 
 function subsCuando(s) {
@@ -2547,7 +2588,7 @@ function renderSuscripciones() {
   let html = '';
   if (activas.length) html += activas.map(subsItemHTML).join('');
   else html += `<div class="empty"><div class="empty-icon">🔎</div>Todavía no detecté suscripciones.<br>
-    <span style="font-size:0.78rem">Hacen falta al menos 3 cobros del mismo comercio con fechas regulares (2 si es anual). Podés agregar una a mano abajo.</span></div>`;
+    <span style="font-size:0.78rem">Hacen falta 3 meses seguidos con un cobro del mismo comercio, cada mes (o 2 cobros con un año de diferencia). Podés agregar una a mano abajo.</span></div>`;
   if (inactivas.length)
     html += `<div class="banc-section-title" style="margin-top:18px">Sin cobros recientes · ¿las cancelaste?</div>` + inactivas.map(subsItemHTML).join('');
   cont.innerHTML = html;
