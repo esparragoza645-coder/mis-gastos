@@ -306,10 +306,12 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
 
+  /* 7 pestañas: compactas y con salto de renglón si no entran (en todos los anchos) */
+  .tabs{flex-wrap:wrap;}
+  .tab-btn{font-size:0.78rem;padding:8px 4px;}
+  @media(max-width:520px){
     .form-group.full{grid-column:1;}
     .summary-total{font-size:2.2rem;}
-    .tabs{flex-wrap:wrap;}
-    .tab-btn{font-size:0.78rem;padding:8px 4px;}
   }
 
   /* ── SUSCRIPCIONES ── */
@@ -451,7 +453,7 @@
   <div class="import-modal" id="importModal" style="display:none">
     <div class="import-card">
       <h3>📤 Importar Gastos desde Excel</h3>
-      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">El archivo debe tener columnas: <strong>fecha, descripcion, monto, categoria</strong></p>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:4px">El archivo debe tener columnas: <strong>fecha, descripcion, monto, categoria</strong>. La fecha en formato AAAA-MM-DD (por ejemplo 2026-09-01).</p>
       <div class="import-drop" id="importDrop" onclick="document.getElementById('importFile').click()">
         <div class="import-drop-icon">📂</div>
         <div class="import-drop-text">Hacé click o arrastrá tu archivo .xlsx o .csv acá</div>
@@ -529,7 +531,10 @@
     </div>
 
     <div class="card">
-      <h2>📋 Historial</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+        <h2 style="margin:0">📋 Historial</h2>
+        <button class="btn-import" onclick="abrirImport()">📤 Importar Excel/CSV</button>
+      </div>
       <div style="margin-bottom:8px"><span id="gastoMesBadge" style="font-size:0.78rem;color:var(--muted)"></span></div>
       <div class="filters" id="filters"></div>
       <div class="gastos-list" id="lista"></div>
@@ -687,7 +692,7 @@
 
     <div class="card">
       <h2>🔁 Tus suscripciones</h2>
-      <p class="subs-hint">Se detectan solas a partir de tus gastos: mismo comercio con un cobro por mes durante 3 meses seguidos (o cada 3 meses / una vez al año). El día puede variar y los montos también (inflación, tipo de cambio). También podés importar el resumen de tu tarjeta con el botón de importar de la pestaña Gastos.</p>
+      <p class="subs-hint">Se detectan solas a partir de tus gastos: mismo comercio con un cobro por mes durante 3 meses seguidos (o cada 3 meses / una vez al año). El día puede variar y los montos también (inflación, tipo de cambio). También podés importar un Excel o CSV con el botón «Importar Excel/CSV» de la pestaña Gastos (columnas: fecha, descripcion, monto y categoria; fecha como AAAA-MM-DD).</p>
       <div id="subsList"></div>
     </div>
 
@@ -1000,6 +1005,8 @@ window.guardarSubs = async()=>{ console.warn('Firebase no cargó aún'); };
 const guardarSubs = (...a) => window.guardarSubs(...a);
 
 function iniciarApp() {
+  // Migración: importaciones anteriores guardaban la categoría en `cat` en vez de `categoria`.
+  gastos.forEach(g => { if (!g.categoria) g.categoria = g.cat || 'Otros'; });
   document.getElementById('ing_fecha').valueAsDate = new Date();
   aplicarTemaGuardado();
   poblarMesGlobal();
@@ -2132,6 +2139,7 @@ const TOUR_PASOS = [
   { emoji:'💰', titulo:'Ingresos', desc:'Registrá tu sueldo, SAC o cualquier otro ingreso. Podés ver el balance del mes: cuánto ganaste vs cuánto gastaste.', tab:'ingresos', highlight:null },
   { emoji:'📊', titulo:'Gráficos', desc:'Visualizá la evolución de tus ingresos y egresos mes a mes. Muy útil para ver tendencias a lo largo del año.', tab:'graficos', highlight:null },
   { emoji:'📅', titulo:'Resumen mensual', desc:'Un resumen completo del mes: ingresos, gastos por categoría, servicios y bancario. Todo en un solo lugar.', tab:'resumen', highlight:null },
+  { emoji:'🔁', titulo:'Suscripciones', desc:'La app detecta sola tus suscripciones (Netflix, Spotify, etc.) cuando un mismo gasto se repite 3 meses seguidos. Te muestra cuánto gastás por mes y por año, te avisa si suben de precio y te recuerda las renovaciones en la campanita 🔔. También podés agregar una a mano y guardar el link para cancelarla.', tab:'suscripciones', highlight:null },
   { emoji:'☕', titulo:'¿Te fue útil la app?', desc:'Si Mis Gastos te ayuda a ordenar tus finanzas, podés invitar un cafecito para apoyar el desarrollo. ¡Gracias!', tab:null, highlight:null, cafecito:true },
 ];
 
@@ -2313,6 +2321,8 @@ importDrop.addEventListener('drop', e => {
   if (e.dataTransfer.files[0]) procesarImportFile(e.dataTransfer.files[0]);
 });
 
+function abrirImport() { document.getElementById('importModal').style.display = 'flex'; }
+
 function handleImportFile(input) { if (input.files[0]) procesarImportFile(input.files[0]); }
 
 function procesarImportFile(file) {
@@ -2328,7 +2338,7 @@ function procesarImportFile(file) {
         const desc  = String(k['descripcion']||k['descripción']||k['description']||'Sin descripción');
         const monto = parseFloat(k['monto']||k['amount']||k['importe']||0);
         const cat   = String(k['categoria']||k['categoría']||k['category']||'Otros');
-        return {id:Date.now()+i, fecha, desc, monto, cat};
+        return {id:Date.now()+i, fecha, desc, monto, categoria:cat};
       }).filter(r=>r.monto>0);
 
       const preview = document.getElementById('importPreview');
@@ -2337,7 +2347,7 @@ function procesarImportFile(file) {
         document.getElementById('importOkBtn').style.display='none'; return;
       }
       preview.innerHTML=`<p style="color:#43e97b;font-size:0.82rem;margin-bottom:8px">✅ ${importPending.length} gastos encontrados:</p>`
-        +importPending.slice(0,5).map(r=>`<div class="import-preview-row">${r.fecha} · ${r.desc} · $${fmt0(r.monto)} · ${r.cat}</div>`).join('')
+        +importPending.slice(0,5).map(r=>`<div class="import-preview-row">${r.fecha} · ${r.desc} · $${fmt0(r.monto)} · ${r.categoria}</div>`).join('')
         +(importPending.length>5?`<div class="import-preview-row" style="color:var(--accent)">...y ${importPending.length-5} más</div>`:'');
       document.getElementById('importOkBtn').style.display='block';
     } catch(err) {
@@ -2540,8 +2550,10 @@ function subsItemHTML(s) {
   const badges = [];
   if (!s.manual && s.deltaUlt >= 0.05)
     badges.push(`<span class="banc-badge subs-up">↑ ${Math.round(s.deltaUlt * 100)}% vs. cobro anterior</span>`);
-  if (!s.manual && s.cobros >= 3 && s.deltaTot >= 0.10)
-    badges.push(`<span class="banc-badge subs-muted">+${Math.round(s.deltaTot * 100)}% desde ${subsEsc(s.primeraFecha)}</span>`);
+  if (!s.manual && s.cobros >= 3 && s.deltaTot >= 0.10 && Math.round(s.deltaTot * 100) !== Math.round(s.deltaUlt * 100)) {
+    const desde = subsF(s.primeraFecha).toLocaleDateString('es-AR', {month:'short', year:'numeric'});
+    badges.push(`<span class="banc-badge subs-muted">+${Math.round(s.deltaTot * 100)}% desde ${subsEsc(desde)}</span>`);
+  }
   if (!s.inactiva && dias >= 0 && dias <= 3)
     badges.push(`<span class="banc-badge subs-soon">renueva ${subsCuando(s)}</span>`);
   const meta = s.inactiva
